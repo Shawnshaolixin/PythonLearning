@@ -1,0 +1,26 @@
+{
+  "models": [
+    {
+      "name": "deepseek-v4-flash",
+      "input_price_per_1m": 0.27,
+      "output_price_per_1m": 1.10
+    },
+    {
+      "name": "deepseek-v4-pro",
+      "input_price_per_1m": 2.00,
+      "output_price_per_1m": 8.00
+    },
+    {
+      "name": "qwen-max",
+      "input_price_per_1m": 2.40,
+      "output_price_per_1m": 9.60
+    }
+  ],
+  "calls": [
+    { "call_id": 1, "model": "deepseek-v4-flash", "input_tokens": 1200, "output_tokens": 350 },
+    { "call_id": 2, "model": "deepseek-v4-flash", "input_tokens": 800,  "output_tokens": 120 },
+    { "call_id": 3, "model": "deepseek-v4-pro",   "input_tokens": 5000, "output_tokens": 900 },
+    { "call_id": 4, "model": "qwen-max",          "input_tokens": 3200, "output_tokens": 600 },
+    { "call_id": 5, "model": "deepseek-v4-pro",   "input_tokens": 2100, "output_tokens": 450 }
+  ]
+}
