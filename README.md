@@ -25,10 +25,15 @@ uv run ai-cost-calculator --config config.json --json
 ## 项目结构
 
 ```
-src/ai_cost_calculator/
+src/ai_cost_calculator/   # Week 1: 费用统计器（函数式）
   models.py      数据模型（dataclass）
   calculator.py  读 JSON + 计算逻辑
   cli.py         命令行入口（argparse）
+src/cost_reporter/        # Week 2: 账单报告生成器（面向对象）
+  errors.py      自定义异常体系
+  report.py      CostReport 类（@property / 魔术方法）
+  formatters.py  格式化器（抽象基类 + 继承多态）
+  cli.py         命令行入口（--format 参数）
 config.json      示例配置文件
 ```
 
@@ -46,3 +51,30 @@ config.json      示例配置文件
 ```
 
 费用公式：`输入token/1e6 * 输入单价 + 输出token/1e6 * 输出单价`
+
+---
+
+## Week 2：账单报告生成器（面向对象进阶）
+
+> 在 Week 1 基础上重构扩展，练习 Python 类体系 vs C# 的差异：
+> `class`/`self`（构造函数/`this`）、`@property`（get-only 属性）、魔术方法（`ToString`/`Equals`）、
+> 自定义异常、继承 + 抽象方法（`abstract class`/`override`）。
+
+### 运行
+
+```bash
+# 文本表格（默认）
+uv run cost-reporter --config config.json
+
+# Markdown 表格
+uv run cost-reporter --config config.json --format markdown
+
+# JSON
+uv run cost-reporter --config config.json --format json
+```
+
+### 与 Week 1 的关系
+
+- **复用**：`CostReport` 类的解析/汇总逻辑直接调用 Week 1 的 `calculator.py`（类做编排，函数做计算）
+- **新增**：未知模型会通过 `validate()` 抛 `UnknownModelError`（Week 1 是静默计 0 费用）—— fail-fast
+- **测试**：复用 Week 1 conftest.py 的 fixture
