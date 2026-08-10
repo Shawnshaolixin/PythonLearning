@@ -11,8 +11,13 @@ import json
 from pathlib import Path
 from typing import List
 
-from . import calculator
-from .models import CostSummary
+try:
+    from . import calculator
+    from .models import CostSummary
+except ImportError:
+    # 当直接运行本文件时（python cli.py），回退到绝对导入
+    import calculator  # type: ignore[no-redef]
+    from models import CostSummary  # type: ignore[no-redef]
 
 
 def format_table(summaries: List[CostSummary]) -> str:

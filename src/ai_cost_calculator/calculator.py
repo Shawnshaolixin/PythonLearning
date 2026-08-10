@@ -11,7 +11,10 @@ import json
 from pathlib import Path
 from typing import List
 
-from .models import CallRecord, CostSummary, Model
+try:
+    from .models import CallRecord, CostSummary, Model
+except ImportError:
+    from models import CallRecord, CostSummary, Model  # type: ignore[no-redef]
 
 
 def load_config(path: str) -> dict:
