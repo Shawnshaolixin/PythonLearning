@@ -11,3 +11,6 @@ wheels/
 
 # Learning plan / personal notes
 AI-AGENT-LEARNING-PLAN.md
+
+# Generated sample data (reproducible via `uv run call-streamer-gen`)
+calls.jsonl

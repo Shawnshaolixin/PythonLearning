@@ -15,6 +15,8 @@ dev = ["pytest"]
 [project.scripts]
 ai-cost-calculator = "ai_cost_calculator.cli:main"
 cost-reporter = "cost_reporter.cli:main"
+call-streamer = "call_streamer.cli:main"
+call-streamer-gen = "call_streamer.sample_gen:main"
 
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
