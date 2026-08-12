@@ -39,6 +39,10 @@ src/call_streamer/        # Week 3: 大日志流费用分析器（生成器与�
   pipeline.py    流式管道（读行 → 解析 → 过滤 → 算费用 → 聚合）
   cli.py         命令行入口（--log / --model / --top / --head）
   sample_gen.py  示例日志生成器（--lines 100000）
+src/cost_api/             # Week 4: AI 费用统计 Web API（FastAPI 入门）
+  models.py      Pydantic v2 模型（请求校验 / 响应建模）
+  service.py     业务服务层（有状态单例，复用 Week 1 计算函数）
+  main.py        FastAPI 应用（路由 / 参数绑定 / Depends / 异常映射）
 config.json      示例配置文件
 ```
 
@@ -151,3 +155,61 @@ summarize（全量汇总）/ top_models（Top-K 聚合）
 - 无限序列 + `islice` 能跑完（急切实现会死循环）
 - `iter_lines` 传不存在的文件不报错，`list()` 消费时才抛
 - 大文件（5 万行）流式处理正确性
+
+---
+
+## Week 4：AI 费用统计 Web API（FastAPI 入门）
+
+> 把 Week 1-3 的命令行工具包装成 REST API。本周是**从"脚本"到"服务"的转折点**——
+> Python 的 Web 后端能力和 .NET 的对应关系极强，重点感受"同样的分层思想，换一种写法"。
+
+### 运行
+
+```bash
+# 1. 启动开发服务器（FastAPI 自动加载 config.json）
+uv run cost-api
+
+# 2. 浏览器打开自动生成的 API 文档（≈ Swashbuckle /swagger）
+#    http://127.0.0.1:8000/docs
+```
+
+接口一览（Swagger 里可以直接"Try it out"）：
+
+| 接口 | 作用 | 参数教学点 |
+|------|------|-----------|
+| `GET /api/health` | 健康检查 | 最简单路由 |
+| `GET /api/models` | 模型价格列表 | 无参数 |
+| `GET /api/models/{name}/cost` | 某模型费用汇总 | 路径参数 + 404 |
+| `GET /api/calls?model=&limit=` | 调用记录查询 | 查询参数 + 默认值 |
+| `POST /api/calls` | 新增调用记录 | 请求体校验 422 / 业务规则 400 / 成功 201 |
+| `GET /api/summary` | 全局汇总 | 复用 Week 1-3 计算逻辑 |
+
+### 知识点（C# 对照主线）
+
+| Python / FastAPI | C# 等价 |
+|------------------|---------|
+| `@app.get("/api/...")` 装饰器 | `app.MapGet("/api/...", handler)`（Minimal API） |
+| Pydantic v2 `BaseModel` + `Field(gt=0)` | record + DataAnnotations（`[Required]` / `[Range]`）+ FluentValidation 合体 |
+| 请求体参数类型标注 → 自动 422 | `[FromBody]` + ModelState 自动绑定校验 |
+| `Path(...)` / `Query(default)` | `[FromRoute]` / `[FromQuery]` |
+| `Depends(get_service)` | DI 容器解析（`[FromServices]` / 构造器注入） |
+| `HTTPException(404, detail=...)` | `Results.NotFound(...)` |
+| `/docs` 自动文档 | Swashbuckle `/swagger` |
+| `uvicorn`（ASGI 服务器） | Kestrel |
+| 环境变量 `COST_API_CONFIG` | `IConfiguration` / 环境变量覆盖 |
+
+**三个关键设计决策**：
+
+1. **分层**：`models.py`（数据/校验）→ `service.py`（业务规则）→ `main.py`（路由/HTTP）。
+   服务层只抛领域异常 `UnknownModelError`，路由层翻译成 HTTP 状态码 —— 和 C# 的 Controller 调 Service 一致。
+2. **复用 Week 1**：`service.py` 直接调用 `calculator.load_config` / `calc_call_cost`，计费公式只写一次。
+   区别：Week 1 是"无状态纯函数"，本周是"有状态单例"——POST 的记录累积在内存 List 里（真实项目会换成数据库）。
+3. **校验层级**：字段级校验（负数 token → 422）由 Pydantic 自动完成；业务级校验（未知模型 → 400）在服务层。
+   这和 C# 的"ModelState 管格式、业务代码管规则"分工完全相同。
+
+### 测试
+
+`tests/test_cost_api.py` 共 12 个用例，核心是 `TestClient`（≈ `WebApplicationFactory<Program>`）：
+- **`dependency_overrides` 替换依赖**：不读真实 `config.json`，注入指向临时配置的服务 —— 等价于测试时替换 DI 注册
+- 覆盖三态码：422（字段非法）/ 400（模型不存在）/ 404（路径参数找不到）
+- 验证服务是有状态的：POST 后 summary 能看到新增记录

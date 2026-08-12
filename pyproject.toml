@@ -7,16 +7,23 @@ authors = [
     { name = "shawn", email = "13382236+shao-lixin@user.noreply.gitee.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn>=0.52.1",
+]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "httpx>=0.28.1",
+    "pytest",
+]
 
 [project.scripts]
 ai-cost-calculator = "ai_cost_calculator.cli:main"
 cost-reporter = "cost_reporter.cli:main"
 call-streamer = "call_streamer.cli:main"
 call-streamer-gen = "call_streamer.sample_gen:main"
+cost-api = "cost_api.main:run"
 
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
