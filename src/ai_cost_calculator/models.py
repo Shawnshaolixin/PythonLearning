@@ -5,6 +5,7 @@
 - 类似 C# 的 record，简洁且自带类型标注
 """
 
+
 from dataclasses import dataclass
 
 

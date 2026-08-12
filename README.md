@@ -43,6 +43,10 @@ src/cost_api/             # Week 4: AI 费用统计 Web API（FastAPI 入门）
   models.py      Pydantic v2 模型（请求校验 / 响应建模）
   service.py     业务服务层（有状态单例，复用 Week 1 计算函数）
   main.py        FastAPI 应用（路由 / 参数绑定 / Depends / 异常映射）
+src/llm_chat/             # Week 5: LLM 命令行聊天工具（LLM API 调用 + 流式输出）
+  chat.py        对话核心（OpenAI SDK / 流式生成器 / 消息历史管理）
+  cost.py        Token 用量 → 费用（复用 Week 1 计费公式）
+  cli.py         命令行入口（uv run llm-chat）
 config.json      示例配置文件
 ```
 
@@ -213,3 +217,65 @@ uv run cost-api
 - **`dependency_overrides` 替换依赖**：不读真实 `config.json`，注入指向临时配置的服务 —— 等价于测试时替换 DI 注册
 - 覆盖三态码：422（字段非法）/ 400（模型不存在）/ 404（路径参数找不到）
 - 验证服务是有状态的：POST 后 summary 能看到新增记录
+
+---
+
+## Week 5：LLM 命令行聊天工具（LLM API 调用 + 流式输出）
+
+> 把 HelloWorld 示例 1（.NET 聊天循环）用 Python + OpenAI SDK 重写，并加上多模型切换 /
+> 流式输出 / Token 费用统计 / 历史保存加载。**前 4 周的知识点在这里汇合**：
+> Week 1 的计费公式、Week 3 的生成器（流式输出的底层机制）、Week 4 的分层思想。
+
+### 环境准备
+
+```bash
+# 1. 设置 DeepSeek API key（DeepSeek 开放平台申请: https://platform.deepseek.com）
+export DEEPSEEK_API_KEY=sk-xxx      # Windows cmd: set DEEPSEEK_API_KEY=sk-xxx
+
+# 2. 可选：换其他 OpenAI 兼容服务（默认 DeepSeek）
+export DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
+### 运行
+
+```bash
+uv run llm-chat                                    # 默认 deepseek-chat，流式
+uv run llm-chat --model deepseek-reasoner          # 切换模型
+uv run llm-chat --no-stream                        # 非流式（一次等完整回复）
+uv run llm-chat --system "你是 Python 老师" --temperature 0.5
+uv run llm-chat --load history.json                # 加载历史继续聊
+uv run llm-chat --save history.json                # 退出时保存历史
+```
+
+聊天中的命令：`/exit` 退出 · `/clear` 清空历史 · `/save 路径` 保存 · `/load 路径` 加载
+
+每轮对话后打印 token 用量 + 费用。**费用统计复用 Week 1 的计费公式**：
+`config.json` 里配置模型价格（如 `deepseek-chat`）后即可显示真实费用，未配置会给出提示。
+
+### 知识点（C# 对照主线）
+
+| Python / OpenAI SDK | C# 等价 |
+|---------------------|---------|
+| `OpenAI(api_key, base_url)` | `new OpenAIClient(apiKey, options)`（同一套 API 设计） |
+| `client.chat.completions.create(...)` | `client.Chat.Completions.CreateAsync(...)` |
+| messages 列表（system/user/assistant） | `List<ChatMessage>` |
+| `stream=True` 返回可迭代对象 | `Stream = true` 的流式响应 |
+| 逐块 `chunk.choices[0].delta.content` | `ContentUpdate[0].Text`（`await foreach`） |
+| `resp.usage.prompt_tokens` | `resp.Usage.PromptTokens` |
+| `stream_options={"include_usage": True}` | `StreamOptions = new() { IncludeUsage = true }` |
+
+**两个关键设计**：
+
+1. **流式 = Week 3 生成器的实战应用**：`stream_reply` 是生成器函数，逐块 `yield` 文本。
+   CLI 用 `consume_stream` 边收边打印 —— 期间还学了一个冷知识：**生成器的 return 值不在
+   生成器对象上，而是藏在迭代结束时抛出的 `StopIteration` 异常里（`e.value`）**，
+   for 循环会把它吞掉，所以要手动 `next()` + 捕获。
+2. **测试不花钱**：`tests/test_llm_chat.py` 全程用假响应（`SimpleNamespace` 构造假 chunk），
+   等价于 C# 的 Moq —— 函数签名即依赖边界，测试端替换成假实现即可。10 个用例覆盖
+   流式逐块输出、空块跳过、usage 缺失兜底、历史保存/加载/过滤、上下文裁剪、费用换算。
+
+### 测试
+
+```bash
+uv run pytest           # 104 个用例全部通过（含 Week 1-5）
+```
