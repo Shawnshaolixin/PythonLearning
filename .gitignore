@@ -14,3 +14,6 @@ AI-AGENT-LEARNING-PLAN.md
 
 # Generated sample data (reproducible via `uv run call-streamer-gen`)
 calls.jsonl
+
+# Local vector store data (reproducible via `uv run rag-demo`)
+src/rag_core/data/

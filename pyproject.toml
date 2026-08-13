@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "chromadb>=1.5.9",
     "fastapi>=0.141.1",
     "openai>=3.0.0",
     "uvicorn>=0.52.1",
@@ -26,6 +27,12 @@ call-streamer = "call_streamer.cli:main"
 call-streamer-gen = "call_streamer.sample_gen:main"
 cost-api = "cost_api.main:run"
 llm-chat = "llm_chat.cli:main"
+rag-demo = "rag_core.demo:main"
+rag-bench = "rag_core.bench:main"
+
+[[tool.uv.index]]
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
 
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
