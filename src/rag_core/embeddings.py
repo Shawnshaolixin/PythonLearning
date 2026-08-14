@@ -34,6 +34,19 @@ class BgeSmallZh(EmbeddingFunction[List[str]]):
     MAX_LENGTH = 512  # C#: const int MaxLength = 512 —— bge 模型最大序列长度
     BATCH_SIZE = 64  # C#: const int BatchSize = 64 —— 分块推理，防大列表吃爆内存
 
+    # bge 官方建议（README 周 1 面试点落地）：短查询文本加指令前缀后检索质量明显更好；
+    # 文档入库**不加**前缀 —— 前缀只属于查询侧（C#: 查询专用的常量模板）
+    QUERY_PREFIX = "为这个句子生成表示以用于检索相关文章："
+
+    def embed_query(self, text: str) -> list[float]:
+        """查询向量：bge 查询侧加指令前缀（与入库文档不加前缀形成对照）。
+
+        C#: float[] EmbedQuery(string text) —— 查询专用方法
+        为什么只对查询加：bge 训练时查询与文档用不同模板，短查询（几字到几十字）
+        不加前缀时与长文档向量错位，chunk_compare 实测 Q05 型短查询会 miss（README 记录）。
+        """
+        return self([self.QUERY_PREFIX + text])[0]
+
     # 模型文件目录：rag_core/data/models/bge-small-zh/（已加入 .gitignore）
     MODEL_DIR = Path(__file__).parent / "data" / "models" / "bge-small-zh"
 

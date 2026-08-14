@@ -72,6 +72,7 @@ class VectorStore:
         }
         if embedding_fn is not None:
             collection_kwargs["embedding_function"] = embedding_fn  # C#: 覆盖默认 Embedding
+        self._embedding_fn = embedding_fn  # C#: 保存引用 —— 查询侧要手动嵌入（bge 前缀）
         self._collection = self._client.get_or_create_collection(**collection_kwargs)
 
     def add_documents(
@@ -109,10 +110,19 @@ class VectorStore:
               .OrderByDescending(r => CosineSimilarity(emb, r.Embedding))  # C#: 手写余弦
               .Take(topK);                                                # C#: 取前 k
         """
-        result = self._collection.query(
-            query_texts=[query],  # C#: 查询列表（批量查询时传多条，这里只查一条）
-            n_results=top_k,  # C#: .Take(top_k) —— 返回的条数上限
-        )
+        # 查询侧 Embedding：bge 官方建议短查询加指令前缀（中文文档检索质量明显提升）。
+        # 实现了 embed_query 的模型在此手动嵌入（C#: if (fn is IBgeLike) fn.EmbedQuery(q)），
+        # 没有该方法（如默认 MiniLM）就走库内 query_texts 路径 —— 前缀只属于 bge 查询侧。
+        if self._embedding_fn is not None and hasattr(self._embedding_fn, "embed_query"):
+            result = self._collection.query(
+                query_embeddings=[self._embedding_fn.embed_query(query)],  # C#: 手动算查询向量
+                n_results=top_k,
+            )
+        else:
+            result = self._collection.query(
+                query_texts=[query],  # C#: 查询列表（批量查询时传多条，这里只查一条）
+                n_results=top_k,  # C#: .Take(top_k) —— 返回的条数上限
+            )
         # ChromaDB 返回形状：{ "ids": [[...]], "documents": [[...]], "distances": [[...]] }
         # 外层列表对应 query_texts 的每条查询，所以取 [0] 是本次查询的结果。
         hits: List[SearchHit] = []
